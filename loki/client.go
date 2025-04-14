@@ -139,12 +139,12 @@ func NewWithLogger(cfg Config, logger *slog.Logger) (*Client, error) {
 	if cfg.URL.URL == nil {
 		return nil, errors.New("client needs target URL")
 	}
-
+	applyDefaults(&cfg)
 	c := &Client{
 		logger:  slog.With(logger, "component", "client", "host", cfg.URL.Host),
 		cfg:     cfg,
 		quit:    make(chan struct{}),
-		entries: make(chan entry),
+		entries: make(chan entry, 1000),
 
 		externalLabels: cfg.ExternalLabels.LabelSet,
 	}
@@ -413,4 +413,25 @@ func mergeLabels(c *Client, ls model.LabelSet) (model.LabelSet, string) {
 func (c *Client) UnregisterLatencyMetric(labels model.LabelSet) {
 	labels[HostLabel] = model.LabelValue(c.cfg.URL.Host)
 	streamLag.Delete(labels)
+}
+
+func applyDefaults(cfg *Config) {
+    if cfg.Timeout == 0 {
+        cfg.Timeout = 10 * time.Second
+    }
+    if cfg.BatchSize == 0 {
+        cfg.BatchSize = 1024 * 1024 // 1MB
+    }
+    if cfg.BatchWait == 0 {
+        cfg.BatchWait = 1 * time.Second
+    }
+    if cfg.BackoffConfig.MinBackoff == 0 {
+        cfg.BackoffConfig.MinBackoff = 100 * time.Millisecond
+    }
+    if cfg.BackoffConfig.MaxBackoff == 0 {
+        cfg.BackoffConfig.MaxBackoff = 10 * time.Second
+    }
+    if cfg.BackoffConfig.MaxRetries == 0 {
+        cfg.BackoffConfig.MaxRetries = 5
+    }
 }
