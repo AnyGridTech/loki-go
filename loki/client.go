@@ -1,3 +1,50 @@
+// Package loki provides a client implementation for sending log entries to a Loki server.
+// It supports batching, retries with backoff, and metrics for monitoring the client's behavior.
+//
+// The Client struct is the main component of this package, responsible for managing log entries,
+// batching them, and sending them to the Loki server. It also provides support for multi-tenancy
+// and external labels.
+//
+// Metrics:
+// - encoded_bytes_total: Number of bytes encoded and ready to send.
+// - sent_bytes_total: Number of bytes successfully sent.
+// - dropped_bytes_total: Number of bytes dropped due to failed retries.
+// - sent_entries_total: Number of log entries successfully sent.
+// - dropped_entries_total: Number of log entries dropped due to failed retries.
+// - request_duration_seconds: Duration of send requests.
+// - batch_retries_total: Number of times batches have been retried.
+// - promtail_stream_lag_seconds: Difference between current time and last batch timestamp for successful sends.
+//
+// Key Features:
+// - Batching: Log entries are batched based on size and time constraints.
+// - Retry with Backoff: Failed requests are retried with exponential backoff.
+// - Multi-Tenancy: Supports sending logs to multiple tenants using the X-Scope-OrgID header.
+// - External Labels: Allows adding external labels to log entries.
+// - Metrics: Exposes Prometheus metrics for monitoring the client's behavior.
+//
+// Usage:
+// - Use New or NewWithLogger to create a new Client instance.
+// - Call Handle or HandleWithMetadata to add log entries to the client.
+// - Call Stop to gracefully stop the client and send any remaining batches.
+//
+// Configuration:
+// - Config struct allows customization of the client's behavior, including batch size, batch wait time,
+//   timeout, and backoff settings. Defaults are applied if not explicitly set.
+//
+// Example:
+//   cfg := loki.Config{
+//       URL: &url.URL{Host: "loki.example.com"},
+//       BatchSize: 1024 * 1024, // 1MB
+//       BatchWait: 1 * time.Second,
+//   }
+//   client, err := loki.New(cfg)
+//   if err != nil {
+//       log.Fatalf("failed to create loki client: %v", err)
+//   }
+//   defer client.Stop()
+//
+//   labels := model.LabelSet{"job": "example"}
+//   client.Handle(labels, time.Now(), "This is a log entry")
 package loki
 
 import (
