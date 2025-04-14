@@ -3,3 +3,4 @@ postgres-data
 pgadmin-data
 loki-data
 grafana-data
+.vscode/launch.json
