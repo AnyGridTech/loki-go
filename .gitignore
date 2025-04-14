@@ -1,0 +1,5 @@
+.env
+postgres-data
+pgadmin-data
+loki-data
+grafana-data
