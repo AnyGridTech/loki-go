@@ -2,6 +2,7 @@ package loki
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -45,31 +46,31 @@ func TestHandle(t *testing.T) {
 }
 
 func TestSendBatch(t *testing.T) {
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
-        w.WriteHeader(http.StatusOK)
-    }))
-    defer server.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 
-    uri.URL = &url.URL{Scheme: "http", Host: server.URL[len("http://"):]}
+	uri.URL = &url.URL{Scheme: "http", Host: server.URL[len("http://"):]}
 
-    cfg := Config{
-        BatchWait: time.Second,
-        URL:       uri,
-    }
-    client, err := New(cfg)
-    assert.NoError(t, err)
+	cfg := Config{
+		BatchWait: time.Second,
+		URL:       uri,
+	}
+	client, err := New(cfg)
+	assert.NoError(t, err)
 
-    batch := newBatch(entry{
-        tenantID: "test-tenant",
-        labels:   model.LabelSet{"job": "test"},
-        Entry: push.Entry{
-            Timestamp: time.Now(),
-            Line:      "test log line",
-        },
-    })
+	batch := newBatch(entry{
+		tenantID: "test-tenant",
+		labels:   model.LabelSet{"job": "test"},
+		Entry: push.Entry{
+			Timestamp: time.Now(),
+			Line:      "test log line",
+		},
+	})
 
-    client.sendBatch("test-tenant", batch)
+	client.sendBatch("test-tenant", batch)
 }
 func TestStopClient(t *testing.T) {
 	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100"}
@@ -160,6 +161,52 @@ func TestBatchStress(t *testing.T) {
 	}
 
 	// Allow some time for batches to be processed
+	time.Sleep(2 * time.Second)
+
+	// Ensure no entries are left in the channel
+	assert.Equal(t, 0, len(client.entries))
+}
+func TestSlogWrapperSendLogsToLoki(t *testing.T) {
+	// Create a mock Loki server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Define the Loki endpoint
+	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}
+
+	// Create a client configuration
+	cfg := Config{
+		BackoffConfig: backoff.BackoffConfig{
+			MinBackoff: 100 * time.Millisecond,
+			MaxBackoff: 10 * time.Second,
+			MaxRetries: 5,
+		},
+		BatchWait: time.Second,
+		BatchSize: 256 * 1024, // 256KB
+		Timeout:   10 * time.Second,
+		URL:       uri,
+	}
+	labels := model.LabelSet{
+		"api":   "example-api", // Add custom labels as needed
+	}
+	// Initialize the client
+	client, err := New(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
+	defer client.Stop()
+	logger := slog.New(NewLokiHandler(client, slog.LevelInfo, labels))
+	// Wrap the slog.Logger
+
+	// Log messages using the wrapped logger
+	logger.Info("Test log message 1")
+	logger.Error("Test log message 2")
+	logger.Warn("Test log message 3")
+
+
+	// Allow some time for logs to be processed
 	time.Sleep(2 * time.Second)
 
 	// Ensure no entries are left in the channel
