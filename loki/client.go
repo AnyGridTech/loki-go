@@ -181,7 +181,7 @@ func (c *Client) run() {
 	// maximum delay we have sending batches is 10% of the max waiting time.
 	// We apply a cap of 10ms to the ticker, to avoid too frequent checks in
 	// case the BatchWait is very low.
-	minWaitCheckFrequency := 10 * time.Millisecond
+	minWaitCheckFrequency := 100 * time.Millisecond
 	maxWaitCheckFrequency := c.cfg.BatchWait / 10
 	if maxWaitCheckFrequency < minWaitCheckFrequency {
 		maxWaitCheckFrequency = minWaitCheckFrequency

@@ -1,0 +1,122 @@
+# dev and test : docker compose -p grafana -f docker-compose.yml up -d --force-recreate
+
+services:
+  postgres:
+      container_name: postgresdb-grafana
+      image: postgres:17.0
+      restart: always
+      volumes:
+        - ./postgres-data:/var/lib/postgresql/data
+      env_file:
+        - .env
+      ports:
+        - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      command: >
+        bash -c "
+          echo '✅   Starting PostgreSQL...';
+          docker-entrypoint.sh postgres & 
+
+          # Wait for PostgreSQL to be fully ready
+          echo '⏳   Waiting for PostgreSQL to start...';
+          until pg_isready -h localhost -p 5432 -U $POSTGRES_USER; do
+            echo '⏳   Still waiting for PostgreSQL...';
+            sleep 5;
+          done;
+
+          echo '✅   PostgreSQL is ready! Proceeding with initialization...';
+
+          # Ensure the main database exists
+          echo \"Checking if main database '$POSTGRES_DB' exists...\";
+          if psql -U \"$POSTGRES_USER\" -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$POSTGRES_DB'\" | grep -q 1; then
+            echo '✅   Main database \"$POSTGRES_DB\" already exists.';
+          else
+            echo '🚀   Creating main database: \"$POSTGRES_DB\"';
+            psql -U \"$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"$POSTGRES_DB\\\";\";
+          fi;
+
+          # Check if test database exists and create schema 'public'
+          echo \"Checking if test database '$POSTGRES_DB_TEST' exists...\";
+          if psql -U \"$POSTGRES_USER\" -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$POSTGRES_DB_TEST'\" | grep -q 1; then
+            echo '✅   Test database \"$POSTGRES_DB_TEST\" already exists.';
+          else
+            echo '🚀   Creating test database: \"$POSTGRES_DB_TEST\"';
+            psql -U \"$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"$POSTGRES_DB_TEST\\\";\";
+          fi;
+
+          echo '🔧   Ensuring schema public exists on test database...';
+          psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB_TEST\" -c 'CREATE SCHEMA IF NOT EXISTS public;';
+
+          echo '🎉   Database initialization complete!';
+
+          # Keep PostgreSQL running in the foreground to prevent container exit
+          wait
+        "
+      networks:
+        - grafana-network
+
+  pgadmin:
+    container_name: pgadmin4-grafana
+    image: dpage/pgadmin4:9
+    restart: always
+    volumes:
+      - ./pgadmin-data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS}
+    ports:
+      - "${PGADMIN_PORT}:80"
+    networks:
+      - grafana-network
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - postgres
+    networks:
+      - grafana-network
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    restart: always
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_ALIAS_PORT}:${GRAFANA_PORT}"
+    depends_on:
+      - prometheus
+    networks:
+      - grafana-network
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+
+  loki:
+    container_name: loki
+    image: grafana/loki:2.9.4
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/loki-config.yaml
+      - ./loki-data/index:/loki/index
+      - ./loki-data/cache:/loki/cache
+      - ./loki-data/chunks:/loki/chunks
+      - ./loki-data/compactor:/loki/compactor
+      - ./loki-data/wal:/loki/wal
+    networks:
+      - grafana-network
+networks:
+  grafana-network:
+
+volumes:
+  postgres-data:
+  pgadmin-data:
+  grafana-data:
+  loki-data:

@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s # How often to scrape
+
+scrape_configs:
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['localhost:4000'] # Change to your API host:port
