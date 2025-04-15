@@ -1,4 +1,4 @@
-module github.com/AnyGridTech/loki-go
+module github.com/AnyGridTech/loki-go/v2
 
 go 1.23.4
 

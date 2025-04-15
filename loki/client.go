@@ -61,8 +61,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AnyGridTech/loki-go/pkg/backoff"
-	"github.com/AnyGridTech/loki-go/pkg/metric"
+	"github.com/AnyGridTech/loki-go/v2/pkg/backoff"
+	"github.com/AnyGridTech/loki-go/v2/pkg/metric"
 	"github.com/grafana/loki/pkg/push"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/config"
