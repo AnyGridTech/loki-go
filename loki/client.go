@@ -28,34 +28,35 @@
 // - Call Stop to gracefully stop the client and send any remaining batches.
 //
 // Configuration:
-// - Config struct allows customization of the client's behavior, including batch size, batch wait time,
-//   timeout, and backoff settings. Defaults are applied if not explicitly set.
+//   - Config struct allows customization of the client's behavior, including batch size, batch wait time,
+//     timeout, and backoff settings. Defaults are applied if not explicitly set.
 //
 // Example:
-//   cfg := loki.Config{
-//       URL: &url.URL{Host: "loki.example.com"},
-//       BatchSize: 1024 * 1024, // 1MB
-//       BatchWait: 1 * time.Second,
-//   }
-//   client, err := loki.New(cfg)
-//   if err != nil {
-//       log.Fatalf("failed to create loki client: %v", err)
-//   }
-//   defer client.Stop()
 //
-//   labels := model.LabelSet{"job": "example"}
-//   client.Handle(labels, time.Now(), "This is a log entry")
+//	cfg := loki.Config{
+//	    URL: &url.URL{Host: "loki.example.com"},
+//	    BatchSize: 1024 * 1024, // 1MB
+//	    BatchWait: 1 * time.Second,
+//	}
+//	client, err := loki.New(cfg)
+//	if err != nil {
+//	    log.Fatalf("failed to create loki client: %v", err)
+//	}
+//	defer client.Stop()
+//
+//	labels := model.LabelSet{"job": "example"}
+//	client.Handle(labels, time.Now(), "This is a log entry")
 package loki
 
 import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
@@ -63,6 +64,7 @@ import (
 
 	"github.com/AnyGridTech/loki-go/v2/pkg/backoff"
 	"github.com/AnyGridTech/loki-go/v2/pkg/metric"
+	"github.com/AnyGridTech/loki-go/v2/pkg/urlutil"
 	"github.com/grafana/loki/pkg/push"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/config"
@@ -183,9 +185,6 @@ func NewWithDefault(url string) (*Client, error) {
 
 // NewWithLogger makes a new Client from a logger and a config
 func NewWithLogger(cfg Config, logger *slog.Logger) (*Client, error) {
-	if cfg.URL.URL == nil {
-		return nil, errors.New("client needs target URL")
-	}
 	applyDefaults(&cfg)
 	c := &Client{
 		logger:  slog.With(logger, "component", "client", "host", cfg.URL.Host),
@@ -463,22 +462,25 @@ func (c *Client) UnregisterLatencyMetric(labels model.LabelSet) {
 }
 
 func applyDefaults(cfg *Config) {
-    if cfg.Timeout == 0 {
-        cfg.Timeout = 10 * time.Second
-    }
-    if cfg.BatchSize == 0 {
-        cfg.BatchSize = 1024 * 1024 // 1MB
-    }
-    if cfg.BatchWait == 0 {
-        cfg.BatchWait = 1 * time.Second
-    }
-    if cfg.BackoffConfig.MinBackoff == 0 {
-        cfg.BackoffConfig.MinBackoff = 100 * time.Millisecond
-    }
-    if cfg.BackoffConfig.MaxBackoff == 0 {
-        cfg.BackoffConfig.MaxBackoff = 10 * time.Second
-    }
-    if cfg.BackoffConfig.MaxRetries == 0 {
-        cfg.BackoffConfig.MaxRetries = 5
-    }
+	if cfg.URL.URL == nil {
+		cfg.URL = urlutil.URLValue{URL: &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}}
+	}
+	if cfg.Timeout == 0 {
+		cfg.Timeout = 10 * time.Second
+	}
+	if cfg.BatchSize == 0 {
+		cfg.BatchSize = 1024 * 1024 // 1MB
+	}
+	if cfg.BatchWait == 0 {
+		cfg.BatchWait = 1 * time.Second
+	}
+	if cfg.BackoffConfig.MinBackoff == 0 {
+		cfg.BackoffConfig.MinBackoff = 100 * time.Millisecond
+	}
+	if cfg.BackoffConfig.MaxBackoff == 0 {
+		cfg.BackoffConfig.MaxBackoff = 10 * time.Second
+	}
+	if cfg.BackoffConfig.MaxRetries == 0 {
+		cfg.BackoffConfig.MaxRetries = 5
+	}
 }

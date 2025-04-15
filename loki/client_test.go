@@ -167,27 +167,20 @@ func TestBatchStress(t *testing.T) {
 	assert.Equal(t, 0, len(client.entries))
 }
 func TestSlogWrapperSendLogsToLoki(t *testing.T) {
-	// Create a mock Loki server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
 	// Define the Loki endpoint
 	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}
 
 	// Create a client configuration
 	cfg := Config{
-		BackoffConfig: backoff.BackoffConfig{
-			MinBackoff: 100 * time.Millisecond,
-			MaxBackoff: 10 * time.Second,
-			MaxRetries: 5,
-		},
-		BatchWait: time.Second,
-		BatchSize: 256 * 1024, // 256KB
-		Timeout:   10 * time.Second,
-		URL:       uri,
+		// BackoffConfig: backoff.BackoffConfig{
+		// 	MinBackoff: 100 * time.Millisecond,
+		// 	MaxBackoff: 10 * time.Second,
+		// 	MaxRetries: 5,
+		// },
+		// BatchWait: time.Second,
+		// BatchSize: 256 * 1024, // 256KB
+		// Timeout:   10 * time.Second,
+		// URL:       uri,
 	}
 	labels := model.LabelSet{
 		"api":   "example-api", // Add custom labels as needed
