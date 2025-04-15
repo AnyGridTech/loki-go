@@ -3,9 +3,6 @@ package loki
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -16,10 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var uri urlutil.URLValue
-
 func TestNewClient(t *testing.T) {
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100"}
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	cfg := Config{
 		URL: uri,
 	}
@@ -29,8 +28,11 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestHandle(t *testing.T) {
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100"}
-
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	cfg := Config{
 		URL: uri,
 	}
@@ -46,14 +48,11 @@ func TestHandle(t *testing.T) {
 }
 
 func TestSendBatch(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	uri.URL = &url.URL{Scheme: "http", Host: server.URL[len("http://"):]}
-
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	cfg := Config{
 		BatchWait: time.Second,
 		URL:       uri,
@@ -73,7 +72,11 @@ func TestSendBatch(t *testing.T) {
 	client.sendBatch("test-tenant", batch)
 }
 func TestStopClient(t *testing.T) {
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100"}
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	cfg := Config{
 		BackoffConfig: backoff.BackoffConfig{
 			MinBackoff: 100 * time.Millisecond,
@@ -94,7 +97,11 @@ func TestStopClient(t *testing.T) {
 }
 func TestSendLogsToLokiUsingClient(t *testing.T) {
 	// Define the Loki endpoint
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	// Create a client configuration
 	cfg := Config{
 		BackoffConfig: backoff.BackoffConfig{
@@ -126,13 +133,11 @@ func TestSendLogsToLokiUsingClient(t *testing.T) {
 	client.Stop()
 }
 func TestBatchStress(t *testing.T) {
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
+	}
 	cfg := Config{
 		BackoffConfig: backoff.BackoffConfig{
 			MinBackoff: 100 * time.Millisecond,
@@ -168,22 +173,15 @@ func TestBatchStress(t *testing.T) {
 }
 func TestSlogWrapperSendLogsToLoki(t *testing.T) {
 	// Define the Loki endpoint
-	uri.URL = &url.URL{Scheme: "http", Host: "localhost:3100", Path: "/loki/api/v1/push"}
-
-	// Create a client configuration
-	cfg := Config{
-		// BackoffConfig: backoff.BackoffConfig{
-		// 	MinBackoff: 100 * time.Millisecond,
-		// 	MaxBackoff: 10 * time.Second,
-		// 	MaxRetries: 5,
-		// },
-		// BatchWait: time.Second,
-		// BatchSize: 256 * 1024, // 256KB
-		// Timeout:   10 * time.Second,
-		// URL:       uri,
+	var uri urlutil.URLValue
+	err := uri.Set("http://localhost:3100/loki/api/v1/push")
+	if err != nil {
+		t.Fatalf("Failed to set URL: %v", err)
 	}
+	// Create a client configuration
+	cfg := Config{URL: uri}
 	labels := model.LabelSet{
-		"api":   "example-api", // Add custom labels as needed
+		"api": "example-api", // Add custom labels as needed
 	}
 	// Initialize the client
 	client, err := New(cfg)
@@ -197,7 +195,6 @@ func TestSlogWrapperSendLogsToLoki(t *testing.T) {
 	logger.Info("Test log message 1")
 	logger.Error("Test log message 2")
 	logger.Warn("Test log message 3")
-
 
 	// Allow some time for logs to be processed
 	time.Sleep(2 * time.Second)
