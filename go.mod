@@ -1,8 +1,9 @@
-module github.com/AnyGridTech/loki-go
+module github.com/AnyGridTech/loki-go/v1
 
 go 1.23.4
 
 require (
+	github.com/AnyGridTech/loki-go v1.0.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/prometheus/common v0.63.0
 	github.com/stretchr/testify v1.10.0
