@@ -4,9 +4,9 @@ import (
 	"flag"
 	"time"
 
-	"github.com/AnyGridTech/loki-go/pkg/backoff"
-	"github.com/AnyGridTech/loki-go/pkg/urlutil"
-	"github.com/AnyGridTech/loki-go/pkg/labelutil"
+	"github.com/AnyGridTech/loki-go/v1/pkg/backoff"
+	"github.com/AnyGridTech/loki-go/v1/pkg/urlutil"
+	"github.com/AnyGridTech/loki-go/v1/pkg/labelutil"
 	"github.com/prometheus/common/config"
 )
 
